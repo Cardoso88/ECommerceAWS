@@ -10,19 +10,27 @@ export async function handler (event: APIGatewayProxyEvent,
     
     const method = event.httpMethod
     if (event.resource === "/products") {
-      if (method === 'GET'){
-        console.log('GET')
+      if (method === 'POST'){
+        console.log('POST')
         return {
-          statusCode: 200,
-          body: JSON.stringify({ message: "GET Products - OK" })
+          statusCode: 201,
+          body: JSON.stringify({ message: "POST /products - OK" })
         }
       }
     } else if (event.resource === "products/{id}") {
       const productId = event.pathParameters!.id as string
-      console.log(`GET /products/${productId}`)
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ message: `GET /products/${productId}` })
+      if (method === 'PUT'){
+        console.log(`PUT /products/${productId}`)
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ message: `PUT /products/${productId}` })
+        }
+      } else if (method === 'DELETE'){
+        console.log(`DELETE /products/${productId}`)
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ message: `DELETE /products/${productId}` })
+        }        
       }
     }
 
