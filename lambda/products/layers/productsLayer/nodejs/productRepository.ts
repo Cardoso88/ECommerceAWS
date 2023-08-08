@@ -18,7 +18,7 @@ export class ProductRepository {
     this.productsDdb = productsDdb
   }
 
-  async gettAllProducts(): Promise<Product[]> {
+  async getAllProducts(): Promise<Product[]> {
     const data = await this.ddbClient.scan({
       TableName: this.productsDdb
     }).promise()
