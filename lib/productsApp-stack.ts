@@ -46,7 +46,8 @@ export class ProductsAppStack extends cdk.Stack {
         environment: {
           PRODUCTS_DDB : this.productsDdb.tableName
         },
-        layers: [productsLayer]
+        layers: [productsLayer],
+        tracing: lambda.Tracing.ACTIVE
       })
     this.productsDdb.grantReadData(this.productsFetchHandler)
     
@@ -67,7 +68,8 @@ export class ProductsAppStack extends cdk.Stack {
         environment: {
           PRODUCTS_DDB : this.productsDdb.tableName
         },
-        layers: [productsLayer]
+        layers: [productsLayer],
+        tracing: lambda.Tracing.ACTIVE
       })
     this.productsDdb.grantWriteData(this.productsAdminHandler)
   }
