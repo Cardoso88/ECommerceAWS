@@ -3,10 +3,12 @@ import * as lambdaNodeJs from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as cdk from 'aws-cdk-lib'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import * as ssm from 'aws-cdk-lib/aws-ssm'
-import { Construct } from 'constructs'
 import * as sns from "aws-cdk-lib/aws-sns"
-import * as subs from "aws-cdk-lib/aws-sns-subscriptions"
 import * as iam from "aws-cdk-lib/aws-iam"
+import * as subs from "aws-cdk-lib/aws-sns-subscriptions"
+import * as sqs from "aws-cdk-lib/aws-sqs"
+import * as lambdaEventSource from "aws-cdk-lib/aws-lambda-event-sources"
+import { Construct } from 'constructs'
 
 interface OrdersAppStackProps extends cdk.StackProps {
   productsDdb: dynamodb.Table,
@@ -135,5 +137,30 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
         })
       }
     }))
+
+    const orderEventsQueue = new sqs.Queue(this, "OrderEventsQueue", {
+      queueName: "order-events",
+      enforceSSL: false,
+      encryption: sqs.QueueEncryption.UNENCRYPTED
+    })
+    ordersTopic.addSubscription(new subs.SqsSubscription(orderEventsQueue))
+
+    const orderEmailHandler = new lambdaNodeJs.NodejsFunction(this, "OrderEmailsFunction", {
+      runtime: lambda.Runtime.NODEJS_16_X,
+        functionName: "OrderEmailsFunction",
+        entry: "lambda/orders/orderEmailsFunction.ts",
+        handler: "handler",
+        memorySize: 128,
+        timeout: cdk.Duration.seconds(2),
+        bundling: {
+          minify: true,
+          sourceMap: false
+        },
+        layers: [orderEventsLayer],
+        tracing: lambda.Tracing.ACTIVE,
+        insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+    })
+    orderEmailHandler.addEventSource(new lambdaEventSource.SqsEventSource(orderEventsQueue))
+    orderEventsQueue.grantConsumeMessages(orderEmailHandler)
   }
 }
