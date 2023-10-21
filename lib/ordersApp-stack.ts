@@ -138,12 +138,29 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
       }
     }))
 
-    const orderEventsQueue = new sqs.Queue(this, "OrderEventsQueue", {
-      queueName: "order-events",
+    const orderEventsDlq = new sqs.Queue(this, "OrderEventsDlq", {
+      queueName: "order-events-dlq",
+      retentionPeriod: cdk.Duration.days(10),
       enforceSSL: false,
       encryption: sqs.QueueEncryption.UNENCRYPTED
     })
-    ordersTopic.addSubscription(new subs.SqsSubscription(orderEventsQueue))
+
+    const orderEventsQueue = new sqs.Queue(this, "OrderEventsQueue", {
+      queueName: "order-events",
+      deadLetterQueue: {
+        maxReceiveCount: 3,
+        queue: orderEventsDlq
+      },
+      enforceSSL: false,
+      encryption: sqs.QueueEncryption.UNENCRYPTED
+    })
+    ordersTopic.addSubscription(new subs.SqsSubscription(orderEventsQueue, {
+      filterPolicy: {
+        eventType: sns.SubscriptionFilter.stringFilter({
+          allowlist: ['ORDER_CREATED']
+        })
+      }
+    }))
 
     const orderEmailHandler = new lambdaNodeJs.NodejsFunction(this, "OrderEmailsFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
@@ -160,7 +177,11 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
         tracing: lambda.Tracing.ACTIVE,
         insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
     })
-    orderEmailHandler.addEventSource(new lambdaEventSource.SqsEventSource(orderEventsQueue))
+    orderEmailHandler.addEventSource(new lambdaEventSource.SqsEventSource(orderEventsQueue, {
+      batchSize: 5,
+      enabled: true,
+      maxBatchingWindow: cdk.Duration.minutes(1)
+    }))
     orderEventsQueue.grantConsumeMessages(orderEmailHandler)
   }
 }
