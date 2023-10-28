@@ -1,6 +1,6 @@
 import { DocumentClient } from "aws-sdk/clients/dynamodb";
 
-export interface  OrderEventDdb {
+export interface OrderEventDdb {
   pk: string;
   sk: string;
   ttl: number;
@@ -17,16 +17,16 @@ export interface  OrderEventDdb {
 
 export class OrderEventRepository {
   private ddbClient: DocumentClient
-  private eventDdb: string
+  private eventsDdb: string
 
   constructor(ddbClient: DocumentClient, eventsDdb: string) {
     this.ddbClient = ddbClient
-    this.eventDdb = eventsDdb
+    this.eventsDdb = eventsDdb
   }
 
   createOrderEvent(orderEvent: OrderEventDdb) {
     return this.ddbClient.put({
-      TableName: this.eventDdb,
+      TableName: this.eventsDdb,
       Item: orderEvent
     }).promise()
   }

@@ -1,6 +1,6 @@
-import * as cdk from 'aws-cdk-lib'
-import { Construct } from 'constructs'
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import * as cdk from "aws-cdk-lib"
+import { Construct } from "constructs"
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 
 export class EventsDdbStack extends cdk.Stack {
   readonly table: dynamodb.Table
@@ -20,7 +20,7 @@ export class EventsDdbStack extends cdk.Stack {
         },
         sortKey: {
           name: "sk",
-          type :  dynamodb.AttributeType.STRING
+          type: dynamodb.AttributeType.STRING
         },
         timeToLiveAttribute: "ttl",
         billingMode: dynamodb.BillingMode.PROVISIONED,
@@ -39,7 +39,7 @@ export class EventsDdbStack extends cdk.Stack {
     })
 
     const writeScale = this.table.autoScaleWriteCapacity({
-      maxCapacity: 2,
+      maxCapacity: 4,
       minCapacity: 1
     })
 

@@ -32,10 +32,10 @@
         "lambda/products/layers/productEventsLayer/nodejs/productEvent"
       ],
       "/opt/nodejs/ordersLayer": [
-        "lambda/orders/layers/ordersLayer/nodejs/ordersRepository"
+        "lambda/orders/layers/ordersLayer/nodejs/orderRepository"
       ],
       "/opt/nodejs/ordersApiLayer": [
-        "lambda/orders/layers/ordersApiLayer/nodejs/ordersApi"
+        "lambda/orders/layers/ordersApiLayer/nodejs/orderApi"
       ],
       "/opt/nodejs/orderEventsLayer": [
         "lambda/orders/layers/orderEventsLayer/nodejs/orderEvent"

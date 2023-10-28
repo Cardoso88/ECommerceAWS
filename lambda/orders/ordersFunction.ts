@@ -1,6 +1,6 @@
-import {  DynamoDB, SNS } from "aws-sdk"
+import { DynamoDB, SNS } from "aws-sdk"
 import { Order, OrderRepository } from "/opt/nodejs/ordersLayer"
-import { ProductRepository, Product } from "/opt/nodejs/productsLayer"
+import { Product, ProductRepository } from "/opt/nodejs/productsLayer"
 import * as AWSXRay from "aws-xray-sdk"
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda"
 import { CarrierType, OrderProductResponse, OrderRequest, OrderResponse, PaymentType, ShippingType } from "/opt/nodejs/ordersApiLayer"
@@ -46,6 +46,7 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
             }          
           }
         } else {
+//Get all orders from an user
           const orders = await orderRepository.getOrdersByEmail(email)
           return {
             statusCode: 200,
@@ -54,6 +55,7 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
         }
       }
     } else {
+//Get all orders
       const orders = await orderRepository.getAllOrders()
       return {
         statusCode: 200,
@@ -115,7 +117,7 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
 
 function sendOrderEvent(order: Order, eventType: OrderEventType, lambdaRequestId: string) {
   const productCodes: string[] = []
-  order.products.forEach((product) => {
+  order.products?.forEach((product) => {
     productCodes.push(product.code)
   })
   const orderEvent: OrderEvent = {
@@ -145,7 +147,7 @@ function sendOrderEvent(order: Order, eventType: OrderEventType, lambdaRequestId
 
 function convertToOrderResponse (order: Order): OrderResponse {
   const orderProducts: OrderProductResponse[] = []
-  order.products.forEach((product) => {
+  order.products?.forEach((product) => {
     orderProducts.push({
       code: product.code,
       price: product.price
@@ -155,7 +157,7 @@ function convertToOrderResponse (order: Order): OrderResponse {
     email: order.pk,
     id: order.sk!,
     createdAt: order.createdAt!,
-    products: orderProducts,
+    products: orderProducts.length ? orderProducts : undefined,
     billing: {
       payment: order.billing.payment as PaymentType,
       totalPrice: order.billing.totalPrice

@@ -2,7 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda
 import { Product, ProductRepository } from "/opt/nodejs/productsLayer"; 
 import { DynamoDB, Lambda } from "aws-sdk"
 import { ProductEvent, ProductEventType } from "/opt/nodejs/productEventsLayer";
-import * as  AWSXRay from "aws-xray-sdk"
+import * as AWSXRay from "aws-xray-sdk"
 
 AWSXRay.captureAWS(require("aws-sdk"))
 
@@ -19,53 +19,56 @@ export async function handler (event: APIGatewayProxyEvent,
   context: Context): Promise<APIGatewayProxyResult> {
   
     const lambdaRequestId = context.awsRequestId
-    const apiRequestID = event.requestContext.requestId
+    const apiRequestId = event.requestContext.requestId
 
-    console.log(`API Gateway RequestId: ${apiRequestID} - Lambda RequestId: ${lambdaRequestId}`)
+    console.log(`API Gateway RequestId: ${apiRequestId} - Lambda RequestId: ${lambdaRequestId}`)
     
-    const method = event.httpMethod
     if (event.resource === "/products") {
-      if (method === 'POST'){
-        console.log('POST')
-        const product = JSON.parse(event.body!) as Product
-        const productCreated = await productRepository.create(product)
+      console.log("POST /products")
+      const product = JSON.parse(event.body!) as Product
+      const productCreated = await productRepository.create(product)
        
-        const response = await sendProductEvent(product, ProductEventType.CREATED, "teste@teste.com.br", lambdaRequestId)
-        console.log(response)
+      const response = await sendProductEvent(productCreated, 
+        ProductEventType.CREATED,
+        "teste@teste.com.br", 
+        lambdaRequestId)
+      console.log(response)
        
         return {
           statusCode: 201,
           body: JSON.stringify(productCreated)
         }
-      }
-    } else if (event.resource === "products/{id}") {
+      } else if (event.resource === "/products/{id}") {
       const productId = event.pathParameters!.id as string
-      if (method === 'PUT'){
+      if (event.httpMethod === "PUT") {
         console.log(`PUT /products/${productId}`)
         const product = JSON.parse(event.body!) as Product
         try {
           const productUpdated = await productRepository.updateProduct(productId, product)
 
-          const response = await sendProductEvent(productUpdated, ProductEventType.UPDATED, "teste@teste.com.br", lambdaRequestId)
+          const response = await sendProductEvent(productUpdated, 
+               ProductEventType.UPDATED,
+               "teste@teste.com.br", lambdaRequestId)
           console.log(response)
 
           return {
             statusCode: 200,
             body: JSON.stringify(productUpdated)
           }
-        } catch (ConditionalCheckFailedExpection) {
+        } catch (ConditionalCheckFailedException) {
           return {
             statusCode: 404,
             body: 'Product not found'
           }
         }
-        
-      } else if (method === 'DELETE'){
+        } else if (event.httpMethod === "DELETE") {
         console.log(`DELETE /products/${productId}`)
         try {
           const product = await productRepository.deleteProduct(productId)
 
-          const response = await sendProductEvent(product, ProductEventType.DELETED, "teste@teste.com.br", lambdaRequestId)
+          const response = await sendProductEvent(product, 
+               ProductEventType.DELETED,
+               "testeteste@teste.com.br", lambdaRequestId)
           console.log(response)
 
           return {
@@ -84,19 +87,18 @@ export async function handler (event: APIGatewayProxyEvent,
 
     return {
       statusCode: 400,
-      body: JSON.stringify({ message: "Bad request" })
+      body: "Bad request"
     }
 }
 
 function sendProductEvent(product: Product, 
-  eventType: ProductEventType,
-  email: string,
+  eventType: ProductEventType, email: string,
   lambdaRequestId: string) {
 
     const event: ProductEvent = {
       email: email,
       eventType: eventType,
-      productCode : product.code,
+      productCode: product.code,
       productId: product.id, 
       productPrice: product.price,
       requestId: lambdaRequestId
@@ -105,8 +107,6 @@ function sendProductEvent(product: Product,
     return lambdaClient.invoke({
       FunctionName: productEventsFunctionName, 
       Payload: JSON.stringify(event),
-      InvocationType: "RequestResponse"
+      InvocationType: "Event"
     }).promise()
   }
-
-  

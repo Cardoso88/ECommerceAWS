@@ -1,66 +1,77 @@
 import * as lambda from 'aws-cdk-lib/aws-lambda'
-import * as lambdaNodeJs from 'aws-cdk-lib/aws-lambda-nodejs'
-import * as cdk from 'aws-cdk-lib'
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
-import * as ssm from 'aws-cdk-lib/aws-ssm'
+import * as lambdaNodeJS from 'aws-cdk-lib/aws-lambda-nodejs'
+import * as cdk from "aws-cdk-lib"
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
+import * as ssm from "aws-cdk-lib/aws-ssm"
 import * as sns from "aws-cdk-lib/aws-sns"
-import * as iam from "aws-cdk-lib/aws-iam"
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions"
+import * as iam from "aws-cdk-lib/aws-iam"
 import * as sqs from "aws-cdk-lib/aws-sqs"
 import * as lambdaEventSource from "aws-cdk-lib/aws-lambda-event-sources"
 import { Construct } from 'constructs'
 
 interface OrdersAppStackProps extends cdk.StackProps {
   productsDdb: dynamodb.Table,
-  eventsDdb: dynamodb.Table
+  eventsDdb: dynamodb.Table,
 }
 
 export class OrdersAppStack extends cdk.Stack {
-readonly ordersHandler: lambdaNodeJs.NodejsFunction
+readonly ordersHandler: lambdaNodeJS.NodejsFunction
 
   constructor(scope: Construct, id: string, props: OrdersAppStackProps) {
     super(scope, id, props)
 
-    const ordersDdb = new dynamodb.Table(this, 'OrdersDdb', {
-      tableName: 'orders',
+    const ordersDdb = new dynamodb.Table(this, "OrdersDdb", {
+      tableName: "orders",
       partitionKey: {
-        name: 'pk',
+        name: "pk",
         type: dynamodb.AttributeType.STRING
       },
       sortKey: {
-        name: 'sk',
+        name: "sk",
         type: dynamodb.AttributeType.STRING
       },
       billingMode: dynamodb.BillingMode.PROVISIONED,
       readCapacity: 1,
       writeCapacity: 1
     })
-    //Orders Layer
-    const ordersLayerArn = ssm.StringParameter.valueForStringParameter(this, "OrdersLayerVersionArn")
-    const ordersLayer = lambda.LayerVersion.fromLayerVersionArn(this, "OrdersLayerVersionArn", ordersLayerArn)
 
-    //Orders Api Layer
-    const ordersApiLayerArn = ssm.StringParameter.valueForStringParameter(this, "OrdersApiLayerVersionArn")
-    const ordersApiLayer = lambda.LayerVersion.fromLayerVersionArn(this, "OrdersApiLayerVersionArn", ordersApiLayerArn)
+    //Orders Layer
+    const ordersLayerArn = ssm.StringParameter
+         .valueForStringParameter(this, "OrdersLayerVersionArn")
+    const ordersLayer = lambda.LayerVersion
+         .fromLayerVersionArn(this, "OrdersLayerVersionArn", ordersLayerArn)
+
+    //Orders API Layer
+    const ordersApiLayerArn = ssm.StringParameter
+         .valueForStringParameter(this, "OrdersApiLayerVersionArn")
+    const ordersApiLayer = lambda.LayerVersion
+         .fromLayerVersionArn(this, "OrdersApiLayerVersionArn", ordersApiLayerArn)
 
     //Order Events Layer
-    const orderEventsLayerArn = ssm.StringParameter.valueForStringParameter(this, "OrderEventsLayerArn")
-    const orderEventsLayer = lambda.LayerVersion.fromLayerVersionArn(this, "OrderEventsLayerArn", orderEventsLayerArn)
+    const orderEventsLayerArn = ssm.StringParameter
+         .valueForStringParameter(this, "OrderEventsLayerVersionArn")
+    const orderEventsLayer = lambda.LayerVersion
+         .fromLayerVersionArn(this, "OrderEventsLayerVersionArn", orderEventsLayerArn)
 
     //Order Events Repository Layer
-    const orderEventsRepositoryLayerArn = ssm.StringParameter.valueForStringParameter(this, "OrderEventsRepositoryLayerArn")
-    const orderEventsRepositoryLayer = lambda.LayerVersion.fromLayerVersionArn(this, "OrderEventsRepositoryLayerArn", orderEventsRepositoryLayerArn)
+    const orderEventsRepositoryLayerArn = ssm.StringParameter
+         .valueForStringParameter(this, "OrderEventsRepositoryLayerVersionArn")
+    const orderEventsRepositoryLayer = lambda.LayerVersion
+         .fromLayerVersionArn(this, "OrderEventsRepositoryLayerVersionArn", orderEventsRepositoryLayerArn)
 
     //Products Layer
-    const productsLayerArn = ssm.StringParameter.valueForStringParameter(this, "ProductsLayerVersionArn")
-    const productsLayer = lambda.LayerVersion.fromLayerVersionArn(this, "ProductsLayerVersionArn", productsLayerArn)
+    const productsLayerArn = ssm.StringParameter
+         .valueForStringParameter(this, "ProductsLayerVersionArn")
+    const productsLayer = lambda.LayerVersion
+         .fromLayerVersionArn(this, "ProductsLayerVersionArn", productsLayerArn)
 
     const ordersTopic = new sns.Topic(this, "OrderEventsTopic", {
       displayName: "Order events topic",
       topicName: "order-events"
     })
 
-    this.ordersHandler = new lambdaNodeJs.NodejsFunction(this, "OrdersFunction", {
+    this.ordersHandler = new lambdaNodeJS.NodejsFunction(this, "OrdersFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
         functionName: "OrdersFunction",
         entry: "lambda/orders/ordersFunction.ts",
@@ -72,8 +83,8 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
           sourceMap: false
         },
         environment: {
-          PRODUCTS_DDB : props.productsDdb.tableName,
-          ORDERS_DDB : ordersDdb.tableName,
+          PRODUCTS_DDB: props.productsDdb.tableName,
+          ORDERS_DDB: ordersDdb.tableName,
           ORDER_EVENTS_TOPIC_ARN: ordersTopic.topicArn
         },
         layers: [ordersLayer, productsLayer, ordersApiLayer, orderEventsLayer],
@@ -85,7 +96,7 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
     props.productsDdb.grantReadData(this.ordersHandler)
     ordersTopic.grantPublish(this.ordersHandler)
 
-    const orderEventsHandler = new lambdaNodeJs.NodejsFunction(this, "OrderEventsFunction", {
+    const orderEventsHandler = new lambdaNodeJS.NodejsFunction(this, "OrderEventsFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
         functionName: "OrderEventsFunction",
         entry: "lambda/orders/orderEventsFunction.ts",
@@ -97,7 +108,7 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
           sourceMap: false
         },
         environment: {
-          EVENTS_DDB : props.eventsDdb.tableName
+          EVENTS_DDB: props.eventsDdb.tableName
         },
         layers: [orderEventsLayer, orderEventsRepositoryLayer],
         tracing: lambda.Tracing.ACTIVE,
@@ -116,7 +127,7 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
     })
     orderEventsHandler.addToRolePolicy(eventsDdbPolicy)
 
-    const billingHandler = new lambdaNodeJs.NodejsFunction(this, "BillingFunction", {
+    const billingHandler = new lambdaNodeJS.NodejsFunction(this, "BillingFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
         functionName: "BillingFunction",
         entry: "lambda/orders/billingFunction.ts",
@@ -162,7 +173,7 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
       }
     }))
 
-    const orderEmailHandler = new lambdaNodeJs.NodejsFunction(this, "OrderEmailsFunction", {
+    const orderEmailsHandler = new lambdaNodeJS.NodejsFunction(this, "OrderEmailsFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
         functionName: "OrderEmailsFunction",
         entry: "lambda/orders/orderEmailsFunction.ts",
@@ -177,11 +188,11 @@ readonly ordersHandler: lambdaNodeJs.NodejsFunction
         tracing: lambda.Tracing.ACTIVE,
         insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
     })
-    orderEmailHandler.addEventSource(new lambdaEventSource.SqsEventSource(orderEventsQueue, {
+    orderEmailsHandler.addEventSource(new lambdaEventSource.SqsEventSource(orderEventsQueue/*, {
       batchSize: 5,
       enabled: true,
       maxBatchingWindow: cdk.Duration.minutes(1)
-    }))
-    orderEventsQueue.grantConsumeMessages(orderEmailHandler)
+    }*/))
+    orderEventsQueue.grantConsumeMessages(orderEmailsHandler)
   }
 }

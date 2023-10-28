@@ -1,7 +1,8 @@
-import * as AWSXRay from "aws-xray-sdk"
-import {  AWSError, DynamoDB, SNS } from "aws-sdk"
-import { Context, SNSEvent, SNSMessage } from "aws-lambda"
+import { Context, 
+   SNSEvent, SNSMessage  } from "aws-lambda"
+import { AWSError, DynamoDB } from "aws-sdk"
 import { OrderEventDdb, OrderEventRepository } from "/opt/nodejs/orderEventsRepositoryLayer"
+import * as AWSXRay from "aws-xray-sdk"
 import { Envelope, OrderEvent } from "/opt/nodejs/orderEventsLayer"
 import { PromiseResult } from "aws-sdk/lib/request"
 

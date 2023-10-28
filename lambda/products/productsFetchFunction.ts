@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
 import { ProductRepository } from "/opt/nodejs/productsLayer"; 
 import { DynamoDB } from "aws-sdk"
-import * as  AWSXRay from "aws-xray-sdk"
+import * as AWSXRay from "aws-xray-sdk"
 
 AWSXRay.captureAWS(require("aws-sdk"))
 
@@ -13,9 +13,9 @@ export async function handler (event: APIGatewayProxyEvent,
   context: Context): Promise<APIGatewayProxyResult> {
   
     const lambdaRequestId = context.awsRequestId
-    const apiRequestID = event.requestContext.requestId
+    const apiRequestId = event.requestContext.requestId
 
-    console.log(`API Gateway RequestId: ${apiRequestID} - Lambda RequestId: ${lambdaRequestId}`)
+    console.log(`API Gateway RequestId: ${apiRequestId} - Lambda RequestId: ${lambdaRequestId}`)
     
     const method = event.httpMethod
     if (event.resource === "/products") {
@@ -28,7 +28,7 @@ export async function handler (event: APIGatewayProxyEvent,
           body: JSON.stringify(products)
         }
       }
-    } else if (event.resource === "products/{id}") {
+    } else if (event.resource === "/products/{id}") {
       const productId = event.pathParameters!.id as string
       console.log(`GET /products/${productId}`)
       try {

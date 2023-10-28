@@ -85,10 +85,10 @@ export class ProductRepository {
       Key: {
         id: productId
       },
-      ConditionExpression: 'attibute_exists(id)',
+      ConditionExpression: 'attribute_exists(id)',
       ReturnValues: "UPDATED_NEW",
-      UpdateExpression: "set productName = :n, code = :ce, price = :p, model = :m, productUrl = :u",
-      ExpressionAttributeValues:{
+      UpdateExpression: "set productName = :n, code = :c, price = :p, model = :m, productUrl = :u",
+      ExpressionAttributeValues: {
         ":n": product.productName,
         ":c": product.code,
         ":p": product.price,

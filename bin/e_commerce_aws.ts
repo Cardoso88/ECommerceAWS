@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { ProductsAppStack } from '../lib/productsApp-stack'
-import { ECommerceApiStack } from '../lib/ecommerceApi-stack'
+import { ProductsAppStack } from '../lib/productsApp-stack';
+import { ECommerceApiStack } from '../lib/ecommerceApi-stack';
 import { ProductsAppLayersStack } from '../lib/productsAppLayers-stack';
 import { EventsDdbStack } from '../lib/eventsDdb-stack';
 import { OrdersAppLayersStack } from '../lib/ordersAppLayers-stack';
@@ -24,12 +24,12 @@ const productsAppLayersStack = new ProductsAppLayersStack(app, "ProductsAppLayer
   env: env
 })
 
-const eventsDdbStack = new EventsDdbStack(app, "EventDdb", {
+const eventsDdbStack = new EventsDdbStack(app, "EventsDdb", {
   tags: tags,
   env: env
 })
 
-const productsAppStack = new ProductsAppStack(app, 'ProductsApp', {
+const productsAppStack = new ProductsAppStack(app, "ProductsApp", {
   eventsDdb: eventsDdbStack.table,
   tags: tags,
   env: env
@@ -43,7 +43,7 @@ const ordersAppLayersStack = new OrdersAppLayersStack(app, "OrdersAppLayers", {
   env: env
 })
 
-const ordersAppStack = new OrdersAppStack(app, "OrdersAppStack", {
+const ordersAppStack = new OrdersAppStack(app, "OrdersApp", {
   tags: tags,
   env: env,
   productsDdb: productsAppStack.productsDdb,
@@ -54,7 +54,7 @@ ordersAppStack.addDependency(ordersAppLayersStack)
 ordersAppStack.addDependency(eventsDdbStack)
 
 
-const eCommerceApiStack = new ECommerceApiStack(app, 'EcommerceApi', {
+const eCommerceApiStack = new ECommerceApiStack(app, "EcommerceApi", {
   productsFetchHandler: productsAppStack.productsFetchHandler,
   productsAdminHandler: productsAppStack.productsAdminHandler,
   ordersHandler: ordersAppStack.ordersHandler,

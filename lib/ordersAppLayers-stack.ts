@@ -26,7 +26,7 @@ export class OrdersAppLayersStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN
     })
 
-    new ssm.StringParameter(this, 'OrdersLayerVersionArn', {
+    new ssm.StringParameter(this, 'OrdersApiLayerVersionArn', {
       parameterName: 'OrdersApiLayerVersionArn',
       stringValue: ordersApiLayer.layerVersionArn
     })
