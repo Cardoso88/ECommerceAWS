@@ -99,21 +99,21 @@ readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
 
     const orderEventsHandler = new lambdaNodeJS.NodejsFunction(this, "OrderEventsFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
-        functionName: "OrderEventsFunction",
-        entry: "lambda/orders/orderEventsFunction.ts",
-        handler: "handler",
-        memorySize: 128,
-        timeout: cdk.Duration.seconds(2),
-        bundling: {
-          minify: true,
-          sourceMap: false
-        },
-        environment: {
-          EVENTS_DDB: props.eventsDdb.tableName
-        },
-        layers: [orderEventsLayer, orderEventsRepositoryLayer],
-        tracing: lambda.Tracing.ACTIVE,
-        insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+      functionName: "OrderEventsFunction",
+      entry: "lambda/orders/orderEventsFunction.ts",
+      handler: "handler",
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(2),
+      bundling: {
+        minify: true,
+        sourceMap: false
+      },
+      environment: {
+        EVENTS_DDB: props.eventsDdb.tableName
+      },
+      layers: [orderEventsLayer, orderEventsRepositoryLayer],
+      tracing: lambda.Tracing.ACTIVE,
+      insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
     })
 
     ordersTopic.addSubscription(new subs.LambdaSubscription(orderEventsHandler))
