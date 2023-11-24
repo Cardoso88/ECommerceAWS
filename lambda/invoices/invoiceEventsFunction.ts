@@ -39,7 +39,19 @@ export async function handler (event: DynamoDBStreamEvent, context: Context): Pr
 }
 
 async function processExpiredTransaction(invoiceTransactionImage: {[key: string]: AttributeValue}): Promise<void> {
-  
+  const transactionId = invoiceTransactionImage.sk.S!
+  const connectionId = invoiceTransactionImage.connectionId.S!
+
+  console.log(`TransactionId: ${transactionId} - ConnectionId: ${connectionId}`)
+
+  if (invoiceTransactionImage.transactionStatus.S === 'INVOICE_PROCESSED') {
+    console.log('Invoice processed')
+  } else {
+    console.log(`Invoice import failed - Status: ${invoiceTransactionImage.transactionStatus.S}`)
+    await invoiceWSService.sendInvoiceStatus(transactionId, connectionId, 'TIMEOUT')
+
+    await invoiceWSService.disconnectClient(connectionId)
+  }
 }
 
 async function createEvent(invoiceImage: {[key: string]: AttributeValue}, eventType: string) {
