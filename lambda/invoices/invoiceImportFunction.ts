@@ -23,7 +23,7 @@ const invoiceRepository = new InvoiceRepository(ddbClient, invoicesDdb)
 export async function handler(event: S3Event, context: Context): Promise<void> {
   const promises: Promise<void>[] = []
  
-  event.Records.forEach((record) => {
+  event.Records.forEach((record: any) => {
     promises.push(processRecord(record))
   })
 
