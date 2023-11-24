@@ -26,13 +26,20 @@ export async function handler (event: DynamoDBStreamEvent, context: Context): Pr
       }
     } else if (record.eventName === 'MODIFY') {
     }else if (record.eventName === 'REMOVE') {
-
+      if (record.dynamodb!.OldImage!.pk.S === '#transaction'){
+        console.log('Invoice transaction event received')
+        promises.push(processExpiredTransaction(record.dynamodb!.OldImage!))
+      }
     }
   })
 
   await Promise.all(promises)
 
   return
+}
+
+async function processExpiredTransaction(invoiceTransactionImage: {[key: string]: AttributeValue}): Promise<void> {
+  
 }
 
 async function createEvent(invoiceImage: {[key: string]: AttributeValue}, eventType: string) {
