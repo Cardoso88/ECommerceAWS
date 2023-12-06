@@ -21,5 +21,91 @@ export class AuditEventBusStack extends cdk.Stack {
       archiveName: "auditEvents",
       retention: cdk.Duration.days(10)
     })
+
+    //source: app.order
+    //detailType: order
+    //reason: PRODUCT_NOT_FOUND
+    const nonValidOrderRule = new events.Rule(this, "NonValidOrderRule", {
+      ruleName: "NonValidOrderRule",
+      description: "Rule matching non valid order",
+      eventBus: this.bus,
+      eventPattern: {
+        source: ['app.order'],
+        detailType: ['order'],
+        detail: {
+          reason: ['PRODUT_NOT_FOUND']
+        }
+      }
+    })
+    //target
+    const ordersErrorsFunction = new lambdaNodeJS.NodejsFunction(this, "OrdersErrorsFunction", {
+      runtime: lambda.Runtime.NODEJS_16_X,
+        functionName: "OrdersErrorsFunction",
+        entry: "lambda/audit/ordersErrorsFunction.ts",
+        handler: "handler",
+        memorySize: 128,
+        timeout: cdk.Duration.seconds(2),
+        bundling: {
+          minify: true,
+          sourceMap: false
+        },
+        tracing: lambda.Tracing.ACTIVE,
+        insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+    })
+    nonValidOrderRule.addTarget(new targets.LambdaFunction(ordersErrorsFunction))
+
+
+    //source: app.invoice
+    //detailType: invoice
+    //errorDetail: FAIL_NO_INVOICE_NUMBER
+    const nonValidInvoiceRule = new events.Rule(this, "NonValidInvoiceRule", {
+      ruleName: "NonValidInvoiceRule",
+      description: "Rule matching non valid invoice",
+      eventBus: this.bus,
+      eventPattern: {
+        source: ['app.invoice'],
+        detailType: ['invoice'],
+        detail: {
+          errorDetail: ['FAIL_NO_INVOICE_NUMBER']
+        }
+      }
+    })
+    //target
+    const invoicesErrorsFunction = new lambdaNodeJS.NodejsFunction(this, "InvoicesErrorsFunction", {
+      runtime: lambda.Runtime.NODEJS_16_X,
+        functionName: "InvoicesErrorsFunction",
+        entry: "lambda/audit/invoicesErrorsFunction.ts",
+        handler: "handler",
+        memorySize: 128,
+        timeout: cdk.Duration.seconds(2),
+        bundling: {
+          minify: true,
+          sourceMap: false
+        },
+        tracing: lambda.Tracing.ACTIVE,
+        insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+    })
+    nonValidInvoiceRule.addTarget(new targets.LambdaFunction(invoicesErrorsFunction))
+  
+    //source: app.invoice
+    //detailType: invoice
+    //errorDetail: TIMEOUT
+    const timeoutImportInvoiceRule = new events.Rule(this, "TimeoutImportInvoiceRule", {
+      ruleName: "TimeoutImportInvoiceRule",
+      description: "Rule matching timeout import invoice",
+      eventBus: this.bus,
+      eventPattern: {
+        source: ['app.invoice'],
+        detailType: ['invoice'],
+        detail: {
+          errorDetail: ['TIMEOUT']
+        }
+      }
+    })
+    //target
+    const invoiceImportTimeoutQueue = new sqs.Queue(this, 'InvoiceImportTimeout', {
+      queueName: 'invoice-import-timeout'
+    })
+    timeoutImportInvoiceRule.addTarget(new targets.SqsQueue(invoiceImportTimeoutQueue))
   }
 }
