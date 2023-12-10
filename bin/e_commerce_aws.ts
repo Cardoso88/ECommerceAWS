@@ -9,6 +9,7 @@ import { OrdersAppLayersStack } from '../lib/ordersAppLayers-stack';
 import { OrdersAppStack } from '../lib/ordersApp-stack';
 import { InvoiceWSApiStack } from '../lib/invoiceWsApi-stack';
 import { InvoicesAppLayersStack } from '../lib/invoicesAppLayers-stack'
+import { AuditEventBusStack } from '../lib/auditEventBus-stack';
 
 const app = new cdk.App();
 const env: cdk.Environment = {
@@ -20,6 +21,14 @@ const tags = {
   cost: String(process.env.COST),
   team: String(process.env.TEAM) 
 }
+
+const auditEventBus = new AuditEventBusStack(app, "AuditEvents", {
+  tags: {
+    cost: 'Audit',
+    team: 'AuditTeam'
+  },
+  env: env
+})
 
 const productsAppLayersStack = new ProductsAppLayersStack(app, "ProductsAppLayers", {
   tags: tags,
@@ -49,11 +58,13 @@ const ordersAppStack = new OrdersAppStack(app, "OrdersApp", {
   tags: tags,
   env: env,
   productsDdb: productsAppStack.productsDdb,
-  eventsDdb: eventsDdbStack.table
+  eventsDdb: eventsDdbStack.table,
+  auditBus: auditEventBus.bus
 })
 ordersAppStack.addDependency(productsAppStack)
 ordersAppStack.addDependency(ordersAppLayersStack)
 ordersAppStack.addDependency(eventsDdbStack)
+ordersAppStack.addDependency(auditEventBus)
 
 
 const eCommerceApiStack = new ECommerceApiStack(app, "EcommerceApi", {
@@ -76,6 +87,7 @@ const invoicesAppLayersStack = new InvoicesAppLayersStack(app, "InvoicesAppLayer
 })
 const invoiceWSApiStack = new InvoiceWSApiStack(app, "InvoiceApi", {
   eventsDdb: eventsDdbStack.table,
+  auditBus: auditEventBus.bus,
   tags: {
     cost: "InvoiceApp",
     team: "TesteCode"
@@ -84,3 +96,4 @@ const invoiceWSApiStack = new InvoiceWSApiStack(app, "InvoiceApi", {
 })
 invoiceWSApiStack.addDependency(invoicesAppLayersStack)
 invoiceWSApiStack.addDependency(eventsDdbStack)
+invoiceWSApiStack.addDependency(auditEventBus)
