@@ -22,7 +22,7 @@ interface OrdersAppStackProps extends cdk.StackProps {
 
 export class OrdersAppStack extends cdk.Stack {
 readonly ordersHandler: lambdaNodeJS.NodejsFunction
-readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
+readonly orderEventsFetchHandler: lambdaNodeJS.NodejsFunction
 
   constructor(scope: Construct, id: string, props: OrdersAppStackProps) {
     super(scope, id, props)
@@ -86,6 +86,10 @@ readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
     const productsLayer = lambda.LayerVersion
          .fromLayerVersionArn(this, "ProductsLayerVersionArn", productsLayerArn)
 
+    //Auth user info layer
+    const authUserInfoLayerArn = ssm.StringParameter.valueForStringParameter(this, "AuthUserInfoLayerVersionArn")
+    const authUserInfoLayer = lambda.LayerVersion.fromLayerVersionArn(this, "AuthUserInfoLayerVersionArn", authUserInfoLayerArn)
+
     const ordersTopic = new sns.Topic(this, "OrderEventsTopic", {
       displayName: "Order events topic",
       topicName: "order-events"
@@ -108,9 +112,9 @@ readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
           ORDER_EVENTS_TOPIC_ARN: ordersTopic.topicArn,
           AUDIT_BUS_NAME: props.auditBus.eventBusName
         },
-        layers: [ordersLayer, productsLayer, ordersApiLayer, orderEventsLayer],
+        layers: [ordersLayer, productsLayer, ordersApiLayer, orderEventsLayer, authUserInfoLayer],
         tracing: lambda.Tracing.ACTIVE,
-        insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
+        //insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
     })
 
     ordersDdb.grantReadWriteData(this.ordersHandler)
@@ -126,7 +130,7 @@ readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
     })
 
     //Alarm
-    const productNonFoundAlarm = productNotFoundMetricFilter
+    const productNotFoundAlarm = productNotFoundMetricFilter
       .metric()
       .with({
         statistic: 'Sum',
@@ -147,7 +151,7 @@ readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
       topicName: "order-alarms"
     })
     orderAlarmsTopic.addSubscription(new subs.EmailSubscription("teste@gmail.com"))
-    productNonFoundAlarm.addAlarmAction(new cw_actions.SnsAction(orderAlarmsTopic))
+    productNotFoundAlarm.addAlarmAction(new cw_actions.SnsAction(orderAlarmsTopic))
 
     const orderEventsHandler = new lambdaNodeJS.NodejsFunction(this, "OrderEventsFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
@@ -254,7 +258,7 @@ readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
     })
     orderEmailsHandler.addToRolePolicy(orderEmailSesPolicy)
 
-    this.ordersEventsFetchHandler = new lambdaNodeJS.NodejsFunction(this, "OrderEventsFetchFunction", {
+    this.orderEventsFetchHandler = new lambdaNodeJS.NodejsFunction(this, "OrderEventsFetchFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
         functionName: "OrderEventsFetchFunction",
         entry: "lambda/orders/orderEventsFetchFunction.ts",
@@ -277,6 +281,6 @@ readonly ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction
       actions: ['dynamodb:Query'],
       resources: [`${props.eventsDdb.tableArn}/index/emailIndex`]
     })
-    this.ordersEventsFetchHandler.addToRolePolicy(eventsFetchDdbPolicy)
+    this.orderEventsFetchHandler.addToRolePolicy(eventsFetchDdbPolicy)
   }
 }

@@ -46,7 +46,7 @@ export class ProductsAppStack extends cdk.Stack {
 
     //Auth user info Layer
     const authUserInfoLayerArn = ssm.StringParameter.valueForStringParameter(this, "AuthUserInfoLayerVersionArn")
-    const authUserInfoLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'authUserInfoLambdaLayer', authUserInfoLayerArn)
+    const authUserInfoLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'AuthUserInfoLayerVersionArn', authUserInfoLayerArn)
 
     const dlq = new sqs.Queue(this, "ProductEventsDlq", {
       queueName: "product-events-dlq",

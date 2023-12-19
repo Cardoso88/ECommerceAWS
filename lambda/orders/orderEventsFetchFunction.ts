@@ -1,11 +1,11 @@
+import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda'
 import { DynamoDB } from 'aws-sdk'
 import * as AWSXray from 'aws-xray-sdk'
 import { OrderEventDdb, OrderEventRepository } from '/opt/nodejs/orderEventsRepositoryLayer'
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda'
 
 AWSXray.captureAWS(require('aws-sdk'))
 
-const eventDdb = process.env.EVENTS_DDB!
+const eventsDdb = process.env.EVENTS_DDB!
 
 const ddbClient = new DynamoDB.DocumentClient()
 const orderEventsRepository = new OrderEventRepository(ddbClient, eventsDdb)

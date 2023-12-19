@@ -88,7 +88,7 @@ adminUserPolicy.attachToRole(<iam.Role> props.ordersHandler.role)
         insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
     })
 
-    const preAuthencticationHandler = new lambdaNodeJS.NodejsFunction(this, "PreAuthenticationFunction", {
+    const preAuthenticationHandler = new lambdaNodeJS.NodejsFunction(this, "PreAuthenticationFunction", {
       runtime: lambda.Runtime.NODEJS_16_X,
         functionName: "PreAuthenticationFunction",
         entry: "lambda/auth/preAuthenticationFunction.ts",
@@ -322,19 +322,22 @@ this.ordersAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, "OrdersA
     })
     ordersResource.addMethod("POST", ordersIntegration, {
       requestValidator: orderRequestValidator,
-      requestModels: { "application/json": orderModel }
+      requestModels: { "application/json": orderModel },
+      authorizer: this.ordersAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      authorizationScopes: ["customer/web", "admin/web"]
     })
 
     // /orders/events
     const orderEventsResource = ordersResource.addResource("events")
 
-    const orderEventsFethValidator = new apigateway.RequestValidator(this, "OrderEventsFethValidator", {
+    const orderEventsFetchValidator = new apigateway.RequestValidator(this, "OrderEventsFetchValidator", {
       restApi: api,
-      requestValidatorName: "OrderEventsFethValidator",
+      requestValidatorName: "OrderEventsFetchValidator",
       validateRequestParameters: true
     })
 
-    const orderEventsFunctionIntegration = new apigateway.LambdaIntegration(props.ordersEventsFetchHandler)
+    const orderEventsFunctionIntegration = new apigateway.LambdaIntegration(props.orderEventsFetchHandler)
     //GET /orders/events?email=teste@teste.com.br
     //GET /orders/events?email=teste@teste.com.br&eventType=ORDER_CREATED
     orderEventsResource.addMethod('GET', orderEventsFunctionIntegration, {
@@ -342,7 +345,7 @@ this.ordersAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, "OrdersA
         'method.request.querystring.email': true,
         'method.request.querystring.eventType': false
       },
-      requestValidator: orderEventsFethValidator
+      requestValidator: orderEventsFetchValidator
     })
   }
 

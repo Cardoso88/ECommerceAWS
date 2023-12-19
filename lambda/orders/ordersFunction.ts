@@ -56,70 +56,64 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
               }          
             }
           } else {
-//Get all orders from an user
-          const orders = await orderRepository.getOrdersByEmail(email)
-          return {
-            statusCode: 200,
-            body: JSON.stringify(orders.map(convertToOrderResponse))
-          }
-}
-            }
-         } else {
+            //Get all orders from an user
+            const orders = await orderRepository.getOrdersByEmail(email)
             return {
-               statusCode: 403,
-               body: `You don't have permission to access this operation` 
+              statusCode: 200,
+              body: JSON.stringify(orders.map(convertToOrderResponse))
+            }
+          }
+        }
+      } else {
+        return {
+            statusCode: 403,
+            body: `You don't have permission to access this operation` 
         }
       }
     } else {
-//Get all orders
-if (isAdmin) {
-      const orders = await orderRepository.getAllOrders()
-      return {
-        statusCode: 200,
-        body: JSON.stringify(orders.map(convertToOrderResponse))
+      //Get all orders
+      if (isAdmin) {
+        const orders = await orderRepository.getAllOrders()
+        return {
+          statusCode: 200,
+          body: JSON.stringify(orders.map(convertToOrderResponse))
+        }
+      } else {
+        return {
+            statusCode: 403,
+            body: `You don't have permission to access this operation` 
+        }
       }
-} else {
-            return {
-               statusCode: 403,
-               body: `You don't have permission to access this operation` 
     }
-  }
-      }
-   } else if (method === 'POST') {
+  } else if (method === 'POST') {
     console.log('POST /orders')
     const orderRequest = JSON.parse(event.body!) as OrderRequest
-    
-      if (!isAdmin) {
-         orderRequest.email = authenticatedUser
-      } else if (orderRequest.email === null) {
-         return {
-            statusCode: 400,
-            body: 'Missing the order owner email'
-         }         
-      }
-      const products = await productRepository.getProductsByIds(orderRequest.productIds)
+    if (!isAdmin) {
+      orderRequest.email = authenticatedUser
+    } else if (orderRequest.email === null) {
+      return {
+        statusCode: 400,
+        body: 'Missing the order owner email'
+      }         
+    }
+    const products = await productRepository.getProductsByIds(orderRequest.productIds)
     if (products.length === orderRequest.productIds.length) {
       const order = buildOrder(orderRequest, products)
       const orderCreatedPromise = orderRepository.createOrder(order)
-
       const eventResultPromise = sendOrderEvent(order, OrderEventType.CREATED, lambdaRequestId)
-
       const results = await Promise.all([orderCreatedPromise, eventResultPromise])
-
       console.log(
         `Order created event sent - OrderId: ${order.sk}
         - MessageId: ${results[1].MessageId}`
-         )
+      )
       return {
         statusCode: 201,
         body: JSON.stringify(convertToOrderResponse(order))
       }  
     } else {
       console.error('Some product was not found')
-      
       const result = await eventBridgeClient.putEvents({
-        Entries: [
-               { 
+        Entries: [{ 
           Source: 'app.order',
           EventBusName: auditBusName,
           DetailType: 'order',
@@ -128,51 +122,44 @@ if (isAdmin) {
             reason: 'PRODUCT_NOT_FOUND',
             orderRequest: orderRequest
           })
-        }
-            ]
-      }            
-         ).promise()
+        }]
+      }).promise()
       console.log(result)
-
       return {
         statusCode: 404,
         body: "Some product was not found"
       }
     }
-} else if (method === 'DELETE') {
+  } else if (method === 'DELETE') {
     console.log('DELETE /orders')
     const email = event.queryStringParameters!.email!
     const orderId = event.queryStringParameters!.orderId!
-
-if (isAdmin || email === authenticatedUser) {
-    try {
-      const orderDelete = await orderRepository.deleteOrder(email, orderId)
-
-      const eventResult = await sendOrderEvent(orderDelete, OrderEventType.DELETED, lambdaRequestId)
-      console.log(
-        `Order deleted event sent - OrderId: ${orderDelete.sk}
-        - MessageId: ${eventResult.MessageId}`
-            )
-            
+    if (isAdmin || email === authenticatedUser) {
+      try {
+        const orderDelete = await orderRepository.deleteOrder(email, orderId)
+        const eventResult = await sendOrderEvent(orderDelete, OrderEventType.DELETED, lambdaRequestId)
+        console.log(
+          `Order deleted event sent - OrderId: ${orderDelete.sk}
+          - MessageId: ${eventResult.MessageId}`
+        )
+        return {
+          statusCode: 200,
+          body: JSON.stringify(convertToOrderResponse(orderDelete))
+        }
+      } catch (error) {
+        console.log((<Error>error).message)  
+        return {
+          statusCode: 404,
+          body: (<Error>error).message
+        }
+      }   
+    } else {
       return {
-        statusCode: 200,
-        body: JSON.stringify(convertToOrderResponse(orderDelete))
-      }
-    } catch (error) {
-      console.log((<Error>error).message)  
-      return {
-        statusCode: 404,
-        body: (<Error>error).message
-}
-         }   
-      } else {
-         return {
-            statusCode: 403,
-            body: `You don't have permission to access this operation` 
+        statusCode: 403,
+        body: `You don't have permission to access this operation` 
       } 
     }
   }
-
   return {
     statusCode: 400,
     body: 'Bad request'
@@ -192,12 +179,10 @@ function sendOrderEvent(order: Order, eventType: OrderEventType, lambdaRequestId
     requestId: lambdaRequestId,
     productCodes: productCodes
   }
-
   const envelope: Envelope = {
     eventType: eventType,
     data: JSON.stringify(orderEvent)
   }
-
   return snsClient.publish({
     TopicArn: orderEventsTopicArn,
     Message: JSON.stringify(envelope),
@@ -232,7 +217,6 @@ function convertToOrderResponse (order: Order): OrderResponse {
       carrier: order.shipping.carrier as CarrierType
     }
   }
-
   return orderResponse
 }
 

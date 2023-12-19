@@ -12,6 +12,7 @@ import * as sqs from "aws-cdk-lib/aws-sqs"
 import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources"
 import * as events from "aws-cdk-lib/aws-events"
 import { Construct } from "constructs"
+import { Events } from "aws-sdk/clients/devopsguru"
 
 interface InvoiceWSApiStackProps extends cdk.StackProps {
   eventsDdb: dynamodb.Table,
@@ -206,7 +207,7 @@ export class InvoiceWSApiStack extends cdk.Stack {
     cancelImportHandler.addToRolePolicy(invoicesDdbReadWriteTransactionPolicy)
     webSocketApi.grantManageConnections(cancelImportHandler)
 
-    //WebScoket API routes
+    //WebSocket API routes
     webSocketApi.addRoute('getImportUrl', {
       integration: new apigatewayv2_integrations.WebSocketLambdaIntegration("GetUrlHandler", getUrlHandler)
     })
