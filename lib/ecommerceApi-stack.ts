@@ -11,12 +11,13 @@ interface ECommerceApiStackProps extends cdk.StackProps {
   productsFetchHandler: lambdaNodeJS.NodejsFunction;
   productsAdminHandler: lambdaNodeJS.NodejsFunction;
   ordersHandler: lambdaNodeJS.NodejsFunction;
-  ordersEventsFetchHandler: lambdaNodeJS.NodejsFunction;
+  orderEventsFetchHandler: lambdaNodeJS.NodejsFunction;
 }
 
 export class ECommerceApiStack extends cdk.Stack {
   private productsAuthorizer: apigateway.CognitoUserPoolsAuthorizer
   private productsAdminAuthorizer: apigateway.CognitoUserPoolsAuthorizer
+  private ordersAuthorizer: apigateway.CognitoUserPoolsAuthorizer
   private customerPool: cognito.UserPool
   private adminPool: cognito.UserPool
   
@@ -54,6 +55,18 @@ export class ECommerceApiStack extends cdk.Stack {
       statements: [adminUserPolicyStatement]
     })
     adminUserPolicy.attachToRole(<iam.Role> props.productsAdminHandler.role)
+adminUserPolicy.attachToRole(<iam.Role> props.ordersHandler.role)
+
+
+      const customerUserPolicyStatement = new iam.PolicyStatement({
+         effect: iam.Effect.ALLOW,
+         actions: ["cognito-idp:AdminGetUser"],
+         resources: [this.customerPool.userPoolArn]
+      })
+      const customerUserPolicy = new iam.Policy(this, 'CustomerGetUserPolicy', {
+         statements: [customerUserPolicyStatement]
+      })
+      customerUserPolicy.attachToRole(<iam.Role> props.ordersHandler.role)
 
     this.createProductsService(props, api)
     this.createOrdersService(props, api)
@@ -93,7 +106,7 @@ export class ECommerceApiStack extends cdk.Stack {
     //Cognito customer UserPool
     this.customerPool = new cognito.UserPool(this, "CustomerPool", {
       lambdaTriggers: {
-        preAuthentication: preAuthencticationHandler,
+        preAuthentication: preAuthenticationHandler,
         postConfirmation: postConfirmationHandler
       },
       userPoolName: "CustomerPool",
@@ -241,6 +254,11 @@ export class ECommerceApiStack extends cdk.Stack {
       cognitoUserPools: [this.adminPool]
     })    
 
+this.ordersAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, "OrdersAuthorizer", {
+         authorizerName: "OrdersAuthorizer",
+         cognitoUserPools: [this.customerPool, this.adminPool]
+      })
+
   }
 
   private createOrdersService (props : ECommerceApiStackProps, api: apigateway.RestApi) {
@@ -252,7 +270,11 @@ export class ECommerceApiStack extends cdk.Stack {
     //GET /orders
     //GET /orders?email=aaa@gmail.com
     //GET /orders?email=aaa@gmail.com&orderId=123
-    ordersResource.addMethod("GET", ordersIntegration)
+    ordersResource.addMethod("GET", ordersIntegration, {
+      authorizer: this.ordersAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      authorizationScopes: ["customer/web", "customer/mobile", "admin/web"]
+   })
 
     const orderDeletionValidator = new apigateway.RequestValidator(this, "OrderDeletionValidator", {
       restApi: api,
@@ -266,8 +288,12 @@ export class ECommerceApiStack extends cdk.Stack {
         'method.request.querystring.email': true,
         'method.request.querystring.orderId': true
       },
-      requestValidator: orderDeletionValidator
+      requestValidator: orderDeletionValidator,
+      authorizer: this.ordersAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      authorizationScopes: ["customer/web", "admin/web"]
     })
+
 
     //POST /orders
     const orderRequestValidator = new apigateway.RequestValidator(this, "OrderRequestValidator", {
@@ -281,8 +307,7 @@ export class ECommerceApiStack extends cdk.Stack {
       schema: {
         type: apigateway.JsonSchemaType.OBJECT,
         properties: {
-          email: { type: apigateway.JsonSchemaType.STRING },
-          productIds: {
+                    productIds: {
             type: apigateway.JsonSchemaType.ARRAY,
             minItems: 1,
             items: { type: apigateway.JsonSchemaType.STRING }  
@@ -292,7 +317,7 @@ export class ECommerceApiStack extends cdk.Stack {
             enum: ["CASH", "DEBIT_CARD", "CREDIT_CARD"]
           }
         },
-        required: ["emails", "productIds", "payment"]
+        required: ["productIds", "payment"]
       }
     })
     ordersResource.addMethod("POST", ordersIntegration, {

@@ -1,4 +1,4 @@
-import { DynamoDB, EventBridge, SNS } from "aws-sdk"
+import { CognitoIdentityServiceProvider, DynamoDB, EventBridge, SNS } from "aws-sdk"
 import { Order, OrderRepository } from "/opt/nodejs/ordersLayer"
 import { Product, ProductRepository } from "/opt/nodejs/productsLayer"
 import * as AWSXRay from "aws-xray-sdk"
@@ -6,6 +6,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda
 import { CarrierType, OrderProductResponse, OrderRequest, OrderResponse, PaymentType, ShippingType } from "/opt/nodejs/ordersApiLayer"
 import { OrderEvent, OrderEventType, Envelope } from '/opt/nodejs/orderEventsLayer'
 import { v4 as uuid } from "uuid"
+import { AuthInfoService } from "/opt/nodejs/authUserInfo"
 
 AWSXRay.captureAWS(require("aws-sdk"))
 
@@ -17,102 +18,142 @@ const auditBusName = process.env.AUDIT_BUS_NAME!
 const ddbClient = new DynamoDB.DocumentClient()
 const snsClient = new SNS()
 const eventBridgeClient = new EventBridge() 
+const cognitoIdentityServiceProvider = new CognitoIdentityServiceProvider()
 
 const orderRepository = new OrderRepository(ddbClient, ordersDdb)
 const productRepository = new ProductRepository(ddbClient, productsDdb) 
 
+const authInfoService = new AuthInfoService(cognitoIdentityServiceProvider)
 export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
   const method = event.httpMethod
   const apiRequestId = event.requestContext.requestId
   const lambdaRequestId = context.awsRequestId
 
-  console.log(`API Gateway RequestId: ${apiRequestId} - LambdaRequestId : ${lambdaRequestId}`)
+  console.log(`API Gateway RequestId: ${apiRequestId} - LambdaRequestId :${lambdaRequestId}`)
 
-  if (method === 'GET'){
-    if (event.queryStringParameters){
+   const isAdmin = authInfoService.isAdminUser(event.requestContext.authorizer)
+   const authenticatedUser = await authInfoService.getUserInfo(event.requestContext.authorizer)
+
+  if (method === 'GET') {
+    if (event.queryStringParameters) {
       const email = event.queryStringParameters!.email
       const orderId = event.queryStringParameters!.orderId
-      if (email){
-        if (orderId){
-          try {
-            const order = await orderRepository.getOrder(email, orderId)
-            return {
-              statusCode: 200,
-              body: JSON.stringify(convertToOrderResponse(order))
+
+      if (isAdmin || email === authenticatedUser) {
+        if (email) {
+          if (orderId) {
+            try {
+              const order = await orderRepository.getOrder(email, orderId)
+              return {
+                statusCode: 200,
+                body: JSON.stringify(convertToOrderResponse(order))
+              }
+            } catch (error) {
+              console.log((<Error>error).message)  
+              return {
+                statusCode: 404,
+                body: (<Error>error).message
+              }          
             }
-          } catch (error) {
-            console.log((<Error>error).message)  
-            return {
-              statusCode: 404,
-              body: (<Error>error).message
-            }          
-          }
-        } else {
+          } else {
 //Get all orders from an user
           const orders = await orderRepository.getOrdersByEmail(email)
           return {
             statusCode: 200,
             body: JSON.stringify(orders.map(convertToOrderResponse))
           }
+}
+            }
+         } else {
+            return {
+               statusCode: 403,
+               body: `You don't have permission to access this operation` 
         }
       }
     } else {
 //Get all orders
+if (isAdmin) {
       const orders = await orderRepository.getAllOrders()
       return {
         statusCode: 200,
         body: JSON.stringify(orders.map(convertToOrderResponse))
       }
+} else {
+            return {
+               statusCode: 403,
+               body: `You don't have permission to access this operation` 
     }
-  } else if (method === 'POST'){
+  }
+      }
+   } else if (method === 'POST') {
     console.log('POST /orders')
     const orderRequest = JSON.parse(event.body!) as OrderRequest
-    const products = await productRepository.getProductsByIds(orderRequest.productsIds)
-    if (products.length === orderRequest.productsIds.length) {
+    
+      if (!isAdmin) {
+         orderRequest.email = authenticatedUser
+      } else if (orderRequest.email === null) {
+         return {
+            statusCode: 400,
+            body: 'Missing the order owner email'
+         }         
+      }
+      const products = await productRepository.getProductsByIds(orderRequest.productIds)
+    if (products.length === orderRequest.productIds.length) {
       const order = buildOrder(orderRequest, products)
       const orderCreatedPromise = orderRepository.createOrder(order)
+
       const eventResultPromise = sendOrderEvent(order, OrderEventType.CREATED, lambdaRequestId)
+
       const results = await Promise.all([orderCreatedPromise, eventResultPromise])
+
       console.log(
         `Order created event sent - OrderId: ${order.sk}
-        - MessageId: ${results[1].MessageId}`)
+        - MessageId: ${results[1].MessageId}`
+         )
       return {
-        statusCode:201,
+        statusCode: 201,
         body: JSON.stringify(convertToOrderResponse(order))
       }  
     } else {
       console.error('Some product was not found')
       
       const result = await eventBridgeClient.putEvents({
-        Entries: [{ 
+        Entries: [
+               { 
           Source: 'app.order',
           EventBusName: auditBusName,
           DetailType: 'order',
           Time: new Date(),
           Detail: JSON.stringify({
-            reason: 'PRODUT_NOT_FOUND',
+            reason: 'PRODUCT_NOT_FOUND',
             orderRequest: orderRequest
           })
-        }]
-      }).promise()
+        }
+            ]
+      }            
+         ).promise()
       console.log(result)
+
       return {
         statusCode: 404,
         body: "Some product was not found"
       }
     }
-
-  } else if (method === 'DELETE'){
+} else if (method === 'DELETE') {
     console.log('DELETE /orders')
     const email = event.queryStringParameters!.email!
     const orderId = event.queryStringParameters!.orderId!
 
+if (isAdmin || email === authenticatedUser) {
     try {
       const orderDelete = await orderRepository.deleteOrder(email, orderId)
+
       const eventResult = await sendOrderEvent(orderDelete, OrderEventType.DELETED, lambdaRequestId)
       console.log(
         `Order deleted event sent - OrderId: ${orderDelete.sk}
-        - MessageId: ${eventResult.MessageId}`)
+        - MessageId: ${eventResult.MessageId}`
+            )
+            
       return {
         statusCode: 200,
         body: JSON.stringify(convertToOrderResponse(orderDelete))
@@ -122,6 +163,12 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
       return {
         statusCode: 404,
         body: (<Error>error).message
+}
+         }   
+      } else {
+         return {
+            statusCode: 403,
+            body: `You don't have permission to access this operation` 
       } 
     }
   }
@@ -150,6 +197,7 @@ function sendOrderEvent(order: Order, eventType: OrderEventType, lambdaRequestId
     eventType: eventType,
     data: JSON.stringify(orderEvent)
   }
+
   return snsClient.publish({
     TopicArn: orderEventsTopicArn,
     Message: JSON.stringify(envelope),
@@ -184,6 +232,7 @@ function convertToOrderResponse (order: Order): OrderResponse {
       carrier: order.shipping.carrier as CarrierType
     }
   }
+
   return orderResponse
 }
 

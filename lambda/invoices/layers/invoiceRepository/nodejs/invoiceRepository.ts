@@ -16,7 +16,7 @@ export interface Invoice {
   quantity: number;
   transactionId: string;
   ttl: number;
-  createAt: number;
+  createdAt: number;
 }
 
 export class InvoiceRepository {

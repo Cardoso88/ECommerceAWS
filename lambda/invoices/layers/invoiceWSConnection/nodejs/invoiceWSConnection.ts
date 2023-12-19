@@ -19,7 +19,7 @@ export class InvoiceWSService {
 
       await this.apigwManagementApi.deleteConnection({
         ConnectionId: connectionId
-      })
+      }).promise()
 
       return true
     } catch (error) {
@@ -37,7 +37,7 @@ export class InvoiceWSService {
       await this.apigwManagementApi.postToConnection({
         ConnectionId: connectionId,
         Data: data
-      })
+      }).promise()
 
       return true
     } catch (error) {

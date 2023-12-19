@@ -8,7 +8,7 @@ AWSXray.captureAWS(require('aws-sdk'))
 const eventDdb = process.env.EVENTS_DDB!
 
 const ddbClient = new DynamoDB.DocumentClient()
-const orderEventsRepository = new OrderEventRepository(ddbClient, eventDdb)
+const orderEventsRepository = new OrderEventRepository(ddbClient, eventsDdb)
 
 export async function handler (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
 
@@ -30,7 +30,7 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
   }
 }
 
-function convertOrderEvents(orderEvents: OrderEventDdb[]){
+function convertOrderEvents(orderEvents: OrderEventDdb[]) {
   return orderEvents.map((orderEvent) => {
     return {
       email: orderEvent.email,

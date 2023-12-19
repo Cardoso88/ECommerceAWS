@@ -8,13 +8,13 @@ import { InvoiceFile, InvoiceRepository } from "/opt/nodejs/invoiceRepository"
 AWSXRay.captureAWS(require('aws-sdk'))
 
 const invoicesDdb = process.env.INVOICE_DDB!
-const invoicesWsApiEndPoint = process.env.INVOICE_WSAPI_ENDPOINT!.substring(6)
+const invoicesWsApiEndpoint = process.env.INVOICE_WSAPI_ENDPOINT!.substring(6)
 const auditBusName = process.env.AUDIT_BUS_NAME! 
 
 const s3Client = new S3()
 const ddbClient = new DynamoDB.DocumentClient()
 const apigwManagementApi = new ApiGatewayManagementApi({
-  endpoint: invoicesWsApiEndPoint
+  endpoint: invoicesWsApiEndpoint
 })
 const eventBridgeClient = new EventBridge() 
 
@@ -63,7 +63,7 @@ async function processRecord(record: S3EventRecord) {
     console.log(invoice)
 
     if (invoice.invoiceNumber.length >= 5) {
-      const createInvoicePromise = await invoiceRepository.create({
+      const createInvoicePromise = invoiceRepository.create({
         pk: `#invoice_${invoice.customerName}`,
         sk: invoice.invoiceNumber,
         ttl: 0,
@@ -71,7 +71,7 @@ async function processRecord(record: S3EventRecord) {
         productId: invoice.productId,
         quantity: invoice.quantity,
         transactionId: key,
-        createAt: Date.now()
+        createdAt: Date.now()
       })
 
       const deleteObjectPromise = s3Client.deleteObject({
@@ -107,11 +107,19 @@ async function processRecord(record: S3EventRecord) {
         ]
       }).promise()
 
-      const sendStatusPromise = await invoiceTransactionRepository.updateInvoiceTransaction(key, InvoiceTransactionStatus.PROCESSED)
-      const updateInvoicePromise = await invoiceWSService.sendInvoiceStatus(key, invoiceTransaction.connectionId, InvoiceTransactionStatus.PROCESSED)
+      const sendStatusPromise = invoiceWSService.sendInvoiceStatus(
+        key, 
+        invoiceTransaction.connectionId,
+        InvoiceTransactionStatus.NON_VALID_INVOICE_NUMBER)
+
+      const updateInvoicePromise = invoiceTransactionRepository.updateInvoiceTransaction(
+        key,
+        InvoiceTransactionStatus.NON_VALID_INVOICE_NUMBER)
+
       await Promise.all([sendStatusPromise, updateInvoicePromise, putEventPromise])
     }
-  } catch (error) {
+    await invoiceWSService.disconnectClient(invoiceTransaction.connectionId)
+   } catch(error) {
     console.log((<Error>error).message)
   }
 }

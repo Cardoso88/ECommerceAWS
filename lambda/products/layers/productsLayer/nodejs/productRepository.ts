@@ -11,7 +11,7 @@ export interface Product {
 }
 
 export class ProductRepository {
-  private ddbClient : DocumentClient
+  private ddbClient: DocumentClient
   private productsDdb: string
 
   constructor(ddbClient: DocumentClient, productsDdb: string) {

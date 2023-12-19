@@ -8,13 +8,14 @@ import { InvoiceWSService } from "/opt/nodejs/invoiceWSConnection"
 AWSXRay.captureAWS(require('aws-sdk'))
 
 const invoicesDdb = process.env.INVOICE_DDB!
-const invoicesWsApiEndPoint = process.env.INVOICE_WSAPI_ENDPOINT!.substring(6)
+const invoicesWsApiEndpoint = process.env.INVOICE_WSAPI_ENDPOINT!.substring(6)
+
 const ddbClient = new DynamoDB.DocumentClient()
 const apigwManagementApi = new ApiGatewayManagementApi({
-  endpoint: invoicesWsApiEndPoint
+  endpoint: invoicesWsApiEndpoint
 })
 const invoiceTransactionRepository = new InvoiceTransactionRepository(ddbClient, invoicesDdb)
-const invoiceWsService = new InvoiceWSService(apigwManagementApi)
+const invoiceWSService = new InvoiceWSService(apigwManagementApi)
 
 export async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
   
@@ -28,7 +29,7 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
     const invoiceTransaction = await invoiceTransactionRepository.getInvoiceTransaction(transactionId)
     if (invoiceTransaction.transactionStatus === InvoiceTransactionStatus.GENERATED) {
       await Promise.all([
-        invoiceWsService.sendInvoiceStatus(
+        invoiceWSService.sendInvoiceStatus(
           transactionId, 
           connectionId, 
           InvoiceTransactionStatus.CANCELLED
@@ -39,7 +40,7 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
         )
       ])
     } else {
-      await invoiceWsService.sendInvoiceStatus(
+      await invoiceWSService.sendInvoiceStatus(
         transactionId, 
         connectionId, 
         invoiceTransaction.transactionStatus
@@ -49,7 +50,7 @@ export async function handler(event: APIGatewayProxyEvent, context: Context): Pr
   } catch (error) {
     console.log((<Error>error).message)
     console.log(`Invoice transaction not found - TransactionId: ${transactionId}`)
-    await invoiceWsService.sendInvoiceStatus(
+    await invoiceWSService.sendInvoiceStatus(
       transactionId, 
       connectionId, 
       InvoiceTransactionStatus.NOT_FOUND

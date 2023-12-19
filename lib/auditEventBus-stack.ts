@@ -4,8 +4,8 @@ import * as cdk from "aws-cdk-lib"
 import * as sqs from "aws-cdk-lib/aws-sqs"
 import * as events from "aws-cdk-lib/aws-events"
 import * as targets from "aws-cdk-lib/aws-events-targets"
+import * as cw from 'aws-cdk-lib/aws-cloudwatch'
 import { Construct } from 'constructs'
-import * as cw from "aws-cdk-lib/aws-cloudwatch"
 
 export class AuditEventBusStack extends cdk.Stack {
   readonly bus: events.EventBus
@@ -34,7 +34,7 @@ export class AuditEventBusStack extends cdk.Stack {
         source: ['app.order'],
         detailType: ['order'],
         detail: {
-          reason: ['PRODUT_NOT_FOUND']
+          reason: ['PRODUCT_NOT_FOUND']
         }
       }
     })

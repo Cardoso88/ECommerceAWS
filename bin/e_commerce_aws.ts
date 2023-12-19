@@ -74,11 +74,11 @@ ordersAppStack.addDependency(eventsDdbStack)
 ordersAppStack.addDependency(auditEventBus)
 
 
-const eCommerceApiStack = new ECommerceApiStack(app, "EcommerceApi", {
+const eCommerceApiStack = new ECommerceApiStack(app, "ECommerceApi", {
   productsFetchHandler: productsAppStack.productsFetchHandler,
   productsAdminHandler: productsAppStack.productsAdminHandler,
   ordersHandler: ordersAppStack.ordersHandler,
-  ordersEventsFetchHandler: ordersAppStack.ordersEventsFetchHandler,
+  orderEventsFetchHandler: ordersAppStack.orderEventsFetchHandler,
   tags: tags,
   env: env
 })

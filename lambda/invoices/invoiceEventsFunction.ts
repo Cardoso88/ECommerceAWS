@@ -6,12 +6,12 @@ import * as AWSXRay from "aws-xray-sdk"
 AWSXRay.captureAWS(require("aws-sdk"))
 
 const eventsDdb = process.env.EVENTS_DDB!
-const invoiceWsApiEndPoint = process.env.INVOICE_WSAPI_ENDPOINT!.substring(6)
+const invoiceWsApiEndpoint = process.env.INVOICE_WSAPI_ENDPOINT!.substring(6)
 const auditBusName = process.env.AUDIT_BUS_NAME! 
 
 const ddbClient = new DynamoDB.DocumentClient()
 const apigwManagementApi = new ApiGatewayManagementApi({
-  endpoint: invoiceWsApiEndPoint
+  endpoint: invoiceWsApiEndpoint
 })
 const eventBridgeClient = new EventBridge()
 
@@ -20,15 +20,15 @@ export async function handler (event: DynamoDBStreamEvent, context: Context): Pr
   const promises: Promise<void>[] = []
   event.Records.forEach((record) => {
     if (record.eventName === 'INSERT') {
-      if (record.dynamodb!.NewImage!.pk.S!.startsWith('#transaction')){
+      if (record.dynamodb!.NewImage!.pk.S!.startsWith('#transaction')) {
         console.log('Invoice transaction event received')
       } else {
         console.log('Invoice event received')
         promises.push(createEvent(record.dynamodb!.NewImage!, "INVOICE_CREATED")) 
       }
     } else if (record.eventName === 'MODIFY') {
-    }else if (record.eventName === 'REMOVE') {
-      if (record.dynamodb!.OldImage!.pk.S === '#transaction'){
+    } else if (record.eventName === 'REMOVE') {
+      if (record.dynamodb!.OldImage!.pk.S === '#transaction') {
         console.log('Invoice transaction event received')
         promises.push(processExpiredTransaction(record.dynamodb!.OldImage!))
       }
@@ -76,7 +76,7 @@ async function processExpiredTransaction(invoiceTransactionImage: {[key: string]
 
 async function createEvent(invoiceImage: {[key: string]: AttributeValue}, eventType: string) {
   const timestamp = Date.now()
-  const ttl =  ~~(timestamp / 1000 + 60 * 60)
+  const ttl = ~~(timestamp / 1000 + 60 * 60)
 
   await ddbClient.put({
     TableName: eventsDdb,

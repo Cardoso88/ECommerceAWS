@@ -18,7 +18,7 @@ const apigwManagementApi = new ApiGatewayManagementApi({
 })
 
 const invoiceTransactionRepository = new InvoiceTransactionRepository(ddbClient, invoicesDdb)
-const invoiceWsService = new InvoiceWSService(apigwManagementApi)
+const invoiceWSService = new InvoiceWSService(apigwManagementApi)
 
 export async function handler (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
   const lambdaRequestId = context.awsRequestId
@@ -34,7 +34,7 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
   })
   //Create invoice transaction
   const timestamp = Date.now()
-  const ttl = ~~(timestamp / 1000 + 60 * 2 )
+  const ttl = ~~(timestamp / 1000 + 60 * 2)
   await invoiceTransactionRepository.createInvoiceTransaction({
     pk: "#transaction",
     sk: key,
@@ -44,7 +44,7 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
     timestamp: timestamp,
     expiresIn: expires,
     connectionId: connectionId,
-    endpoint: invoicesWsApiEndPoint
+    endpoint: invoicesWsApiEndpoint
   })
   //Send URL back to WS connected client
   const postData = JSON.stringify({
@@ -52,7 +52,8 @@ export async function handler (event: APIGatewayProxyEvent, context: Context): P
     expires: expires,
     transactionId: key
   })
-  await invoiceWsService.sendData(connectionId, postData)
+  await invoiceWSService.sendData(connectionId, postData)
+
   return {
     statusCode: 200,
     body: 'OK'
